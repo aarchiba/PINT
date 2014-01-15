@@ -463,7 +463,6 @@ def kepler_two_body(params,t):
                       d_tasc,
                       d_t]))
 
-
     xv = xv_tot/(1+1./q)
     d_xv = d_xv_tot/(1+1./q) + xv_tot[:,None]*d_q[None,:]/(1+q)**2
 
@@ -520,3 +519,29 @@ def inverse_kepler_two_body(total_state, t):
         x_cm=x_cm[0], y_cm=x_cm[1], z_cm=x_cm[2],
         vx_cm=v_cm[0], vy_cm=v_cm[1], vz_cm=v_cm[2],
         tasc=t0)
+
+def time_dilation(total_state):
+    """Compute the time dilation factor (minus one) for a pulsar.
+
+    The time dilation experienced by a pulsar comes from two effects:
+    the special relativistic time dilation due to the pulsar's movement,
+    and the general relativistic effect due to the pulsar's proximity
+    to other gravitating bodies in the system.
+
+    This function takes a set of positions, velocities, and masses for
+    the pulsar and all other bodies and returns the factor by which time
+    is dilated minus one. The result will always be negative.
+
+    The formula for the gravitational time dilation used is (1-GM/rc**2).
+    """
+    states = total_state.reshape((-1,7))
+    beta2 = np.sum(states[0,3:6]**2)/c**2
+    # want (1-beta2)**(-1/2)-1
+    r = np.expm1(-0.5*np.log1p(-beta2))
+
+    for i in range(1,len(states)):
+        d = np.sqrt(np.sum((states[i,:3]-states[0,:3])**2))
+        r2 = -2*G*states[i,6]/(d*c**2))
+        r = r + r2 + r*r2
+
+    return r
