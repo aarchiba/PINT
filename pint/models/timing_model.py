@@ -93,18 +93,24 @@ class TimingModel(object):
         self.phase_funcs = [] # List of phase component functions
         self.cache = None
 
-        self.add_param(Parameter(name="PSR",
-            units=None,
+        self.PSR = Parameter(units=None,
             description="Source name",
             aliases=["PSRJ", "PSRB"],
-            parse_value=str))
+            parse_value=str)
 
     def setup(self):
         pass
 
-    def add_param(self, param):
-        setattr(self, param.name, param)
-        self.params += [param.name,]
+    def __setattr__(self, name, value):
+        if isinstance(value, Parameter):
+            self.params.append(name)
+            if value.name is None:
+                value.name = name
+            elif value.name != name:
+                raise ValueError("Parameter with internal name %s " \
+                                 "assigned to attribute named %s"
+                                 % (value.name, name))
+        self.__dict__[name] = value
 
     def param_help(self):
         """Print help lines for all available parameters in model.

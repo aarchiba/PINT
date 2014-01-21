@@ -17,23 +17,23 @@ class Spindown(TimingModel):
     def __init__(self):
         super(Spindown, self).__init__()
 
-        self.add_param(Parameter(name="F0",
+        self.F0 = Parameter(
             units="Hz",
             description="Spin frequency",
             aliases=["F"],
             parse_value=mpmath.mpf,
-            print_value=lambda x: '%.15f'%x))
+            print_value=lambda x: '%.15f'%x)
 
-        self.add_param(Parameter(name="F1",
+        self.F1 = Parameter(
             units="Hz/s", value=0.0,
-            description="Spin-down rate"))
+            description="Spin-down rate")
 
-        self.add_param(MJDParameter(name="TZRMJD",
-            description="Reference epoch for phase"))
+        self.TZRMJD = MJDParameter(
+            description="Reference epoch for phase")
 
-        self.add_param(MJDParameter(name="PEPOCH",
+        self.PEPOCH = MJDParameter(
             parse_value=lambda x: time_from_mjd_string(x, scale='tdb'),
-            description="Reference epoch for spin-down"))
+            description="Reference epoch for spin-down")
 
         self.phase_funcs += [self.simple_spindown_phase,]
 

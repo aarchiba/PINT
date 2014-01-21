@@ -14,36 +14,36 @@ class Astrometry(TimingModel):
     def __init__(self):
         super(Astrometry, self).__init__()
 
-        self.add_param(Parameter(name="RA",
+        self.RA = Parameter(
             units="H:M:S",
             description="Right ascension (J2000)",
             aliases=["RAJ"],
             parse_value=lambda x: Angle(x+'h'),
             print_value=lambda x: x.to_string(sep=':',
-                precision=8)))
+                precision=8))
 
-        self.add_param(Parameter(name="DEC",
+        self.DEC = Parameter(
             units="D:M:S",
             description="Declination (J2000)",
             aliases=["DECJ"],
             parse_value=lambda x: Angle(x+'deg'),
             print_value=lambda x: x.to_string(sep=':',
-                alwayssign=True, precision=8)))
+                alwayssign=True, precision=8))
 
-        self.add_param(MJDParameter(name="POSEPOCH",
-            description="Reference epoch for position"))
+        self.POSEPOCH = MJDParameter(
+            description="Reference epoch for position")
 
-        self.add_param(Parameter(name="PMRA",
+        self.PMRA = Parameter(
             units="mas/year", value=0.0,
-            description="Proper motion in RA"))
+            description="Proper motion in RA")
 
-        self.add_param(Parameter(name="PMDEC",
+        self.PMDEC = Parameter(name="PMDEC",
             units="mas/year", value=0.0,
-            description="Proper motion in DEC"))
+            description="Proper motion in DEC")
 
-        self.add_param(Parameter(name="PX",
+        self.PX = Parameter(name="PX",
             units="mas", value=0.0,
-            description="Parallax"))
+            description="Parallax")
 
         self.delay_funcs += [self.solar_system_geometric_delay,]
 

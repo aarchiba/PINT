@@ -12,11 +12,11 @@ class SolarSystemShapiro(TimingModel):
     def __init__(self):
         super(SolarSystemShapiro, self).__init__()
 
-        self.add_param(Parameter(name="PLANET_SHAPIRO",
+        self.PLANET_SHAPIRO = Parameter(
             units=None, value=False, continuous=False,
             description="Include planetary Shapiro delays (Y/N)",
             parse_value=lambda x: x.upper() == 'Y',
-            print_value=lambda x: 'Y' if x else 'N'))
+            print_value=lambda x: 'Y' if x else 'N')
 
         self.delay_funcs += [self.solar_system_shapiro_delay,]
 
