@@ -114,10 +114,29 @@ class TimingModel(object):
 
     def param_help(self):
         """Print help lines for all available parameters in model.
+
+        >>> import pint.models
+        >>> print pint.models.StandardTimingModel().param_help()
+        Available parameters for <class 'pint.models.timing_model.StandardTimingModel'>
+        PSR          Source name
+        PLANET_SHAPIRO Include planetary Shapiro delays (Y/N)
+        DM           Dispersion measure (pc cm^-3)
+        F0           Spin frequency (Hz)
+        F1           Spin-down rate (Hz/s)
+        TZRMJD       Reference epoch for phase (MJD)
+        PEPOCH       Reference epoch for spin-down (MJD)
+        RA           Right ascension (J2000) (H:M:S)
+        DEC          Declination (J2000) (D:M:S)
+        POSEPOCH     Reference epoch for position (MJD)
+        PMRA         Proper motion in RA (mas/year)
+        PMDEC        Proper motion in DEC (mas/year)
+        PX           Parallax (mas)
+        <BLANKLINE>        
         """
         s = "Available parameters for %s\n" % self.__class__
         for par in self.params:
             s += "%s\n" % getattr(self, par).help_line()
+        return s
 
     @Cache.use_cache
     def phase(self, toa):
