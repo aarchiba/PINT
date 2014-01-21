@@ -12,6 +12,7 @@ import scipy.linalg
 
 # FIXME: can I import this from somewhere?
 G = 36768.59290949113 # Based on standard gravitational parameter
+c = 86400 # lt-s per day
 
 def true_from_eccentric(e, eccentric_anomaly):
     """Compute the true anomaly from the eccentric anomaly.
@@ -541,7 +542,7 @@ def time_dilation(total_state):
 
     for i in range(1,len(states)):
         d = np.sqrt(np.sum((states[i,:3]-states[0,:3])**2))
-        r2 = -2*G*states[i,6]/(d*c**2))
+        r2 = -2*G*states[i,6]/(d*c**2)
         r = r + r2 + r*r2
 
     return r
