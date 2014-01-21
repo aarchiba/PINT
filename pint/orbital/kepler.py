@@ -1,11 +1,11 @@
-"""Functions for working with Keplerian orbits
+"""Functions for working with Keplerian orbits.
 
 All times are in days, distances in light-seconds, and masses in solar masses.
 """
 from __future__ import division
 import collections
 import numpy as np
-from scipy.optimize import newton, fsolve
+from scipy.optimize import newton
 from scipy.linalg import block_diag
 import scipy.linalg
 
@@ -304,7 +304,7 @@ class Kepler3DParameters(
 
 
 
-def kepler_3d(params,t):
+def kepler_3d(params, t):
     """One-body Kepler problem in 3D.
 
     This function simply uses kepler_2d and rotates it into 3D.
@@ -317,68 +317,68 @@ def kepler_3d(params,t):
     lan = params.lan
 
     p2 = Kepler2DParameters(a=a, pb=pb, eps1=eps1, eps2=eps2, t0=params.t0)
-    xv, jac = kepler_2d(p2,t)
+    xv, jac = kepler_2d(p2, t)
     xyv = np.zeros(6)
     xyv[:2] = xv[:2]
     xyv[3:5] = xv[2:]
 
-    jac2 = np.zeros((6,8))
-    t = np.zeros((6,6))
+    jac2 = np.zeros((6, 8))
+    t = np.zeros((6, 6))
     t[:2] = jac[:2]
     t[3:5] = jac[2:]
-    jac2[:,:4] = t[:,:4]
-    jac2[:,-2:] = t[:,-2:]
+    jac2[:, :4] = t[:, :4]
+    jac2[:, -2:] = t[:, -2:]
 
-    r_i = np.array([[1,0,0],
-                    [0,np.cos(i),-np.sin(i)],
-                    [0,np.sin(i), np.cos(i)]])
-    d_r_i = np.array([[0,0,0],
-                      [0,-np.sin(i),-np.cos(i)],
-                      [0, np.cos(i),-np.sin(i)]])
-    r_i_6 = block_diag(r_i,r_i)
-    d_r_i_6 = block_diag(d_r_i,d_r_i)
-    xyv3 = np.dot(r_i_6,xyv)
-    jac3 = np.dot(r_i_6,jac2)
-    jac3[:,4] += np.dot(d_r_i_6, xyv)
+    r_i = np.array([[1, 0, 0],
+                    [0, np.cos(i), -np.sin(i)],
+                    [0, np.sin(i), np.cos(i)]])
+    d_r_i = np.array([[0, 0, 0],
+                      [0, -np.sin(i), -np.cos(i)],
+                      [0, np.cos(i), -np.sin(i)]])
+    r_i_6 = block_diag(r_i, r_i)
+    d_r_i_6 = block_diag(d_r_i, d_r_i)
+    xyv3 = np.dot(r_i_6, xyv)
+    jac3 = np.dot(r_i_6, jac2)
+    jac3[:, 4] += np.dot(d_r_i_6, xyv)
 
-    r_lan = np.array([[ np.cos(lan),np.sin(lan),0],
-                      [-np.sin(lan),np.cos(lan),0],
-                      [0,0,1]])
-    d_r_lan = np.array([[-np.sin(lan), np.cos(lan),0],
-                        [-np.cos(lan),-np.sin(lan),0],
-                        [0,0,0]])
-    r_lan_6 = block_diag(r_lan,r_lan)
-    d_r_lan_6 = block_diag(d_r_lan,d_r_lan)
-    xyv4 = np.dot(r_lan_6,xyv3)
-    jac4 = np.dot(r_lan_6,jac3)
-    jac4[:,5] += np.dot(d_r_lan_6, xyv3)
+    r_lan = np.array([[np.cos(lan), np.sin(lan), 0],
+                      [-np.sin(lan), np.cos(lan), 0],
+                      [0, 0, 1]])
+    d_r_lan = np.array([[-np.sin(lan), np.cos(lan), 0],
+                        [-np.cos(lan), -np.sin(lan), 0],
+                        [0, 0, 0]])
+    r_lan_6 = block_diag(r_lan, r_lan)
+    d_r_lan_6 = block_diag(d_r_lan, d_r_lan)
+    xyv4 = np.dot(r_lan_6, xyv3)
+    jac4 = np.dot(r_lan_6, jac3)
+    jac4[:, 5] += np.dot(d_r_lan_6, xyv3)
 
     return xyv4, jac4
 
 def inverse_kepler_3d(xyv, m, t):
     """Inverse Kepler one-body calculation.
     """
-    L = np.cross(xyv[:3],xyv[3:])
-    i = np.arccos(L[2]/np.sqrt(np.dot(L,L)))
-    lan = (-np.arctan2(L[0],-L[1])) % (2*np.pi)
+    L = np.cross(xyv[:3], xyv[3:])
+    i = np.arccos(L[2]/np.sqrt(np.dot(L, L)))
+    lan = (-np.arctan2(L[0], -L[1])) % (2*np.pi)
 
-    r_lan = np.array([[ np.cos(lan),np.sin(lan),0],
-                      [-np.sin(lan),np.cos(lan),0],
-                      [0,0,1]])
-    r_lan_6 = block_diag(r_lan,r_lan)
-    xyv2 = np.dot(r_lan_6.T,xyv)
+    r_lan = np.array([[np.cos(lan), np.sin(lan), 0],
+                      [-np.sin(lan), np.cos(lan), 0],
+                      [0, 0, 1]])
+    r_lan_6 = block_diag(r_lan, r_lan)
+    xyv2 = np.dot(r_lan_6.T, xyv)
 
-    r_i = np.array([[1,0,0],
-                    [0,np.cos(i),-np.sin(i)],
-                    [0,np.sin(i), np.cos(i)]])
-    r_i_6 = block_diag(r_i,r_i)
-    xyv3 = np.dot(r_i_6.T,xyv2)
+    r_i = np.array([[1, 0, 0],
+                    [0, np.cos(i), -np.sin(i)],
+                    [0, np.sin(i), np.cos(i)]])
+    r_i_6 = block_diag(r_i, r_i)
+    xyv3 = np.dot(r_i_6.T, xyv2)
 
-    xv = xyv3[np.array([True,True,False,True,True,False])]
+    xv = xyv3[np.array([True, True, False, True, True, False])]
     p2 = inverse_kepler_2d(xv, m, t)
 
-    return Kepler3DParameters(a=p2.a,pb=p2.pb,eps1=p2.eps1,eps2=p2.eps2,
-                              i=i,lan=lan,t0=p2.t0)
+    return Kepler3DParameters(a=p2.a, pb=p2.pb, eps1=p2.eps1, eps2=p2.eps2,
+                              i=i, lan=lan, t0=p2.t0)
 
 
 
@@ -404,7 +404,7 @@ class KeplerTwoBodyParameters(
     """
     __slots__ = ()
 
-def kepler_two_body(params,t):
+def kepler_two_body(params, t):
     """Set up two bodies in a Keplerian orbit
 
     Most orbital parameters describe the orbit of the
@@ -453,7 +453,7 @@ def kepler_two_body(params,t):
                             eps1=params.eps1, eps2=params.eps2,
                             i=params.i, lan=params.lan,
                             t0=params.tasc)
-    xv_tot, jac_one = kepler_3d(p2,t)
+    xv_tot, jac_one = kepler_3d(p2, t)
     d_xv_tot = np.dot(jac_one,
             np.array([d_a_tot,
                       d_pb,
@@ -465,10 +465,10 @@ def kepler_two_body(params,t):
                       d_t]))
 
     xv = xv_tot/(1+1./q)
-    d_xv = d_xv_tot/(1+1./q) + xv_tot[:,None]*d_q[None,:]/(1+q)**2
+    d_xv = d_xv_tot/(1+1./q) + xv_tot[:, None]*d_q[None, :]/(1+q)**2
 
     xv_c = -xv/q
-    d_xv_c = -d_xv/q+xv[:,None]*d_q[None,:]/q**2
+    d_xv_c = -d_xv/q+xv[:, None]*d_q[None, :]/q**2
 
     xv[:3] += x_cm # FIXME: when, if t is actually t0?
     xv[3:] += v_cm
@@ -484,7 +484,7 @@ def kepler_two_body(params,t):
     total_state[6] = m
     total_state[7:13] = xv_c
     total_state[13] = m_c
-    d_total_state = np.zeros((14,15))
+    d_total_state = np.zeros((14, 15))
     d_total_state[:6] = d_xv
     d_total_state[6] = d_m
     d_total_state[7:13] = d_xv_c
@@ -493,6 +493,12 @@ def kepler_two_body(params,t):
     return total_state, d_total_state
 
 def inverse_kepler_two_body(total_state, t):
+    """Compute the two-body Keplerian parameters.
+
+    Starting from positions, velocities and masses for two bodies at time
+    t, work out their Keplerian parameters in the format accepted by
+    kepler_two_body.
+    """
     x_p = total_state[:3]
     v_p = total_state[3:6]
     m_p = total_state[6]
@@ -507,10 +513,10 @@ def inverse_kepler_two_body(total_state, t):
     x = x_p-x_c
     v = v_p-v_c
 
-    xv = np.concatenate((x,v))
+    xv = np.concatenate((x, v))
 
-    p2 = inverse_kepler_3d(xv,m_c+m_p,t)
-    a_tot,pb,eps1,eps2,i,lan,t0 = p2
+    p2 = inverse_kepler_3d(xv, m_c+m_p, t)
+    a_tot, pb, eps1, eps2, i, lan, t0 = p2
     q = m_c/m_p
     a = a_tot/(1+1./q)
 
@@ -535,14 +541,14 @@ def time_dilation(total_state):
 
     The formula for the gravitational time dilation used is (1-GM/rc**2).
     """
-    states = total_state.reshape((-1,7))
-    beta2 = np.sum(states[0,3:6]**2)/c**2
+    states = total_state.reshape((-1, 7))
+    beta2 = np.sum(states[0, 3:6]**2)/c**2
     # want (1-beta2)**(-1/2)-1
     r = np.expm1(-0.5*np.log1p(-beta2))
 
-    for i in range(1,len(states)):
-        d = np.sqrt(np.sum((states[i,:3]-states[0,:3])**2))
-        r2 = -2*G*states[i,6]/(d*c**2)
+    for i in range(1, len(states)):
+        d = np.sqrt(np.sum((states[i, :3]-states[0, :3])**2))
+        r2 = -2*G*states[i, 6]/(d*c**2)
         r = r + r2 + r*r2
 
     return r
