@@ -188,27 +188,32 @@ class TOAs(object):
                 # Subtracting zero. Do nothing
                 return self
 
-    def get_freqs(self):
+    @property
+    def freqs(self):
         """Return a numpy array of the observing frequencies for the TOAs.
         """
         return numpy.array([t.freq for t in self.toas])
 
-    def get_mjds(self):
+    @property
+    def mjds(self):
         """Return a numpy array of the astropy.time MJDs of the TOAs.
         """
         return numpy.array([t.mjd for t in self.toas])
 
-    def get_errors(self):
+    @property
+    def errors(self):
         """Return a numpy array of the TOA errors.
         """
         return numpy.array([t.error for t in self.toas])
 
-    def get_obss(self):
-        """Return a numpy array of the observatories for rach TOA.
+    @property
+    def obss(self):
+        """Return a numpy array of the observatories for each TOA.
         """
         return numpy.array([t.obs for t in self.toas])
 
-    def get_flags(self):
+    @property
+    def flags(self):
         """Return a numpy array of the TOA flags.
         """
         return numpy.array([t.flags for t in self.toas])
@@ -230,7 +235,7 @@ class TOAs(object):
         s += "There are %d TOAs\n" % len([x for x in self.toas])
         s += "There are %d commands\n" % \
               len([x for x in self.commands])
-        errs = self.get_errors()
+        errs = self.errors
         s += "Min / Max TOA errors:\t%g\t%g\tus\n" % (min(errs), max(errs))
         s += "Mean / Median / StDev TOA error:\t%g\t%g\t%g\tus\n" % \
               (errs.mean(), numpy.median(errs), errs.std())
@@ -313,9 +318,9 @@ class TOAs(object):
 
         The result is stored in self.table.
         """
-        self.table = table.Table([self.get_mjds(), self.get_errors(),
-                                  self.get_freqs(), self.get_obss(),
-                                  self.get_flags()],
+        self.table = table.Table([self.mjds, self.errors,
+                                  self.freqs, self.obss,
+                                  self.flags],
                                  names=("mjds", "errors", "freqs",
                                         "obss", "flags"))
 

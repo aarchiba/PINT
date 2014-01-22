@@ -30,7 +30,7 @@ time_toa = time.time() - t0
 sys.stderr.write("Read/corrected TOAs in %.3f sec\n" % time_toa)
 
 mjds = numpy.array([x.mjd.value for x in t.toas])
-errs = t.get_errors()
+errs = t.errors
 resids = numpy.zeros_like(mjds)
 
 sys.stderr.write("Computing residuals...\n")
