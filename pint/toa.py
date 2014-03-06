@@ -99,8 +99,8 @@ def parse_TOA_line(line, fmt="Unknown"):
 class TOA(object):
     """A time of arrival class.
 
-        MJD will be stored in astropy.time.Time format, and can be
-            passed as a double (not recommended), a string, a
+        MJD will be stored in astropy.time.Time format, and must be
+            passed as a
             tuple of component parts (day and fraction of day).
         error is the TOA uncertainty in microseconds
         obs is the observatory name as defined in XXX
