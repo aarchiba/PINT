@@ -1,4 +1,5 @@
 import re, sys, os, mpmath, cPickle
+import StringIO
 import numpy
 from . import utils
 from . import observatories as observatories_module
@@ -319,29 +320,7 @@ def read_toa_file(filename, process_includes=True):
     Will recurse to process INCLUDE-d files unless
     process_includes is set to False.
     """
-    # Read from a pickle file if available
-    if os.path.isfile(filename+".pickle"):
-        if (os.path.getmtime(filename+".pickle") >
-            os.path.getmtime(filename)):
-            log.info("Reading toas from '%s'...\n",
-                     (filename+".pickle"))
-            # Pickle file is newer, assume it is good and load it
-            tmp = cPickle.load(open(filename+".pickle"))
-            return tmp
-
-    toas = []
-    commands = []
-    cdict = {"EFAC": 1.0, "EQUAD": 0.0,
-             "EMIN": 0.0, "EMAX": 1e100,
-             "FMIN": 0.0, "FMAX": 1e100,
-             "INFO": None, "SKIP": False,
-             "TIME": 0.0, "PHASE": 0,
-             "PHA1": None, "PHA2": None,
-             "MODE": 1, "JUMP": [False, 0],
-             "FORMAT": "Unknown", "END": False}
-    observatories = set()
-    def read_internal(filename, toas, commands, cdict, observatories):
-        with open(filename, "r") as f:
+    def read_internal(f, toas, commands, cdict, observatories):
             for l in f.readlines():
                 MJD, d = parse_TOA_line(l, fmt=cdict["FORMAT"])
                 if d["format"] == "Command":
@@ -380,8 +359,10 @@ def read_toa_file(filename, process_includes=True):
                         # Save FORMAT in a tmp
                         fmt = cdict["FORMAT"]
                         cdict["FORMAT"] = "Unknown"
-                        read_internal(d["Command"][1],
-                                      toas, commands, cdict, observatories)
+                        with open(d["Command"][1], "r") as f:
+                            read_internal(f,
+                                          toas, commands,
+                                          cdict, observatories)
                         # re-set FORMAT
                         cdict["FORMAT"] = fmt
                     else:
@@ -412,7 +393,36 @@ def read_toa_file(filename, process_includes=True):
                             newtoa.flags["time"] = cdict["TIME"]
                         observatories.add(newtoa.obs)
                         toas.append(newtoa)
-    read_internal(filename, toas, commands, cdict, observatories)
+
+    # Read from a pickle file if available
+    if os.path.isfile(filename):
+        picklename = filename+".pickle"
+        if os.path.isfile(picklename):
+            if (os.path.getmtime(picklename) >
+                os.path.getmtime(filename)):
+                log.info("Reading toas from '%s'...\n",
+                         (filename+".pickle"))
+                # Pickle file is newer, assume it is good and load it
+                tmp = cPickle.load(open(filename+".pickle"))
+                return tmp
+        f = open(filename, "rt")
+    else:
+        # It's not a file; maybe treat it as a string?
+        log.info("Unable to locate tim file '%s'", filename)
+        f = StringIO(filename)
+
+    toas = []
+    commands = []
+    cdict = {"EFAC": 1.0, "EQUAD": 0.0,
+             "EMIN": 0.0, "EMAX": 1e100,
+             "FMIN": 0.0, "FMAX": 1e100,
+             "INFO": None, "SKIP": False,
+             "TIME": 0.0, "PHASE": 0,
+             "PHA1": None, "PHA2": None,
+             "MODE": 1, "JUMP": [False, 0],
+             "FORMAT": "Unknown", "END": False}
+    observatories = set()
+    read_internal(f, toas, commands, cdict, observatories)
 
     return TOAs(filename=filename, toas=toas, commands=commands,
                 observatories=observatories)
