@@ -376,6 +376,7 @@ def read_toa_file(filename, process_includes=True):
                         else:
                             cdict[cmd][0] = True
                     elif cmd == "INCLUDE" and process_includes:
+                        # FIXME: paths should be relative to the filename
                         # Save FORMAT in a tmp
                         fmt = cdict["FORMAT"]
                         cdict["FORMAT"] = "Unknown"
