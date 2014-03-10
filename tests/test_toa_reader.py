@@ -2,7 +2,7 @@ from pint import toa
 
 class TestTOAReader:
     def setUp(self):
-        self.x = toa.TOAs("tests/test1.tim")
+        self.x = toa.read_toa_file("tests/test1.tim")
 
     def test_commands(self):
         assert len(self.x.commands) == 16

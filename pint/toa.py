@@ -158,35 +158,24 @@ class TOAs(object):
 
     """
 
-    def __init__(self, toafile=None):
-        if toafile:
-            # FIXME: work with file-like objects
-            if type(toafile) in [tuple, list]:
-                self.filename = None
-                for infile in toafile:
-                    self.read_toa_file(infile)
-            else:
-                pth, ext = os.path.splitext(toafile)
-                if ext == ".pickle":
-                    toafile = pth
-                self.read_toa_file(toafile)
-                self.filename = toafile
-        else:
+    def __init__(self,
+                 filename=None,
+                 toas=None,
+                 commands=None,
+                 observatories=None):
+        if toas is None:
             self.toas = []
+        else:
+            self.toas = toas
+        if commands is None:
             self.commands = []
-            self.filename = None
-
-    def __add__(self, x):
-        if type(x) in [int, float]:
-            if not x:
-                # Adding zero. Do nothing
-                return self
-
-    def __sub__(self, x):
-        if type(x) in [int, float]:
-            if not x:
-                # Subtracting zero. Do nothing
-                return self
+        else:
+            self.commands = commands
+        if observatories is None:
+            self.observatories = set()
+        else:
+            self.observatories = observatories
+        self.filename = filename
 
     @property
     def freqs(self):
@@ -324,109 +313,105 @@ class TOAs(object):
                                  names=("mjds", "errors", "freqs",
                                         "obss", "flags"))
 
-    def read_toa_file(self, filename, process_includes=True, top=True):
-        """Read the given filename and return a list of TOA objects.
+def read_toa_file(filename, process_includes=True):
+    """Read the given filename and return a TOAs object.
 
-        Will recurse to process INCLUDE-d files unless
-        process_includes is set to False.
-        """
-        if top:
-            # Read from a pickle file if available
-            if os.path.isfile(filename+".pickle"):
-                if (os.path.getmtime(filename+".pickle") >
-                    os.path.getmtime(filename)):
-                    sys.stderr.write("Reading toas from '%s'...\n" % \
-                                     (filename+".pickle"))
-                    # Pickle file is newer, assume it is good and load it
-                    tmp = cPickle.load(open(filename+".pickle"))
-                    self.filename = tmp.filename
-                    self.toas = tmp.toas
-                    self.commands = tmp.commands
-                    self.observatories = tmp.observatories
-                    return
-            self.toas = []
-            self.commands = []
-            self.cdict = {"EFAC": 1.0, "EQUAD": 0.0,
-                          "EMIN": 0.0, "EMAX": 1e100,
-                          "FMIN": 0.0, "FMAX": 1e100,
-                          "INFO": None, "SKIP": False,
-                          "TIME": 0.0, "PHASE": 0,
-                          "PHA1": None, "PHA2": None,
-                          "MODE": 1, "JUMP": [False, 0],
-                          "FORMAT": "Unknown", "END": False}
-            self.observatories = set()
+    Will recurse to process INCLUDE-d files unless
+    process_includes is set to False.
+    """
+    # Read from a pickle file if available
+    if os.path.isfile(filename+".pickle"):
+        if (os.path.getmtime(filename+".pickle") >
+            os.path.getmtime(filename)):
+            log.info("Reading toas from '%s'...\n",
+                     (filename+".pickle"))
+            # Pickle file is newer, assume it is good and load it
+            tmp = cPickle.load(open(filename+".pickle"))
+            return tmp
+
+    toas = []
+    commands = []
+    cdict = {"EFAC": 1.0, "EQUAD": 0.0,
+             "EMIN": 0.0, "EMAX": 1e100,
+             "FMIN": 0.0, "FMAX": 1e100,
+             "INFO": None, "SKIP": False,
+             "TIME": 0.0, "PHASE": 0,
+             "PHA1": None, "PHA2": None,
+             "MODE": 1, "JUMP": [False, 0],
+             "FORMAT": "Unknown", "END": False}
+    observatories = set()
+    def read_internal(filename, toas, commands, cdict, observatories):
         with open(filename, "r") as f:
             for l in f.readlines():
-                MJD, d = parse_TOA_line(l, fmt=self.cdict["FORMAT"])
+                MJD, d = parse_TOA_line(l, fmt=cdict["FORMAT"])
                 if d["format"] == "Command":
                     cmd = d["Command"][0]
-                    self.commands.append((d["Command"], len(self.toas)))
+                    commands.append((d["Command"], len(toas)))
                     if cmd == "SKIP":
-                        self.cdict[cmd] = True
+                        cdict[cmd] = True
                         continue
                     elif cmd == "NOSKIP":
-                        self.cdict["SKIP"] = False
+                        cdict["SKIP"] = False
                         continue
                     elif cmd == "END":
-                        self.cdict[cmd] = True
+                        cdict[cmd] = True
                         break
                     elif cmd in ("TIME", "PHASE"):
-                        self.cdict[cmd] += float(d["Command"][1])
+                        cdict[cmd] += float(d["Command"][1])
                     elif cmd in ("EMIN", "EMAX", "EFAC", "EQUAD",\
                                  "PHA1", "PHA2", "FMIN", "FMAX"):
-                        self.cdict[cmd] = float(d["Command"][1])
+                        cdict[cmd] = float(d["Command"][1])
                         if cmd in ("PHA1", "PHA2", "TIME", "PHASE"):
                             d[cmd] = d["Command"][1]
                     elif cmd == "INFO":
-                        self.cdict[cmd] = d["Command"][1]
+                        cdict[cmd] = d["Command"][1]
                         d[cmd] = d["Command"][1]
                     elif cmd == "FORMAT":
                         if d["Command"][1] == "1":
-                            self.cdict[cmd] = "Tempo2"
+                            cdict[cmd] = "Tempo2"
                     elif cmd == "JUMP":
-                        if self.cdict[cmd][0]:
-                            self.cdict[cmd][0] = False
-                            self.cdict[cmd][1] += 1
+                        if cdict[cmd][0]:
+                            cdict[cmd][0] = False
+                            cdict[cmd][1] += 1
                         else:
-                            self.cdict[cmd][0] = True
+                            cdict[cmd][0] = True
                     elif cmd == "INCLUDE" and process_includes:
                         # Save FORMAT in a tmp
-                        fmt = self.cdict["FORMAT"]
-                        self.cdict["FORMAT"] = "Unknown"
-                        self.read_toa_file(d["Command"][1], top=False)
+                        fmt = cdict["FORMAT"]
+                        cdict["FORMAT"] = "Unknown"
+                        read_internal(d["Command"][1],
+                                      toas, commands, cdict, observatories)
                         # re-set FORMAT
-                        self.cdict["FORMAT"] = fmt
+                        cdict["FORMAT"] = fmt
                     else:
                         continue
-                if (self.cdict["SKIP"] or
+                if (cdict["SKIP"] or
                     d["format"] in ("Blank", "Unknown", "Comment", "Command")):
                     continue
-                elif self.cdict["END"]:
-                    if top:
-                        # Clean up our temporaries used when reading TOAs
-                        del self.cdict
+                elif cdict["END"]:
                     return
                 else:
                     newtoa = TOA(MJD, **d)
-                    if ((self.cdict["EMIN"] > newtoa.error) or
-                        (self.cdict["EMAX"] < newtoa.error) or
-                        (self.cdict["FMIN"] > newtoa.freq) or
-                        (self.cdict["FMAX"] < newtoa.freq)):
+                    if ((cdict["EMIN"] > newtoa.error) or
+                        (cdict["EMAX"] < newtoa.error) or
+                        (cdict["FMIN"] > newtoa.freq) or
+                        (cdict["FMAX"] < newtoa.freq)):
                         continue
                     else:
-                        newtoa.error *= self.cdict["EFAC"]
+                        newtoa.error *= cdict["EFAC"]
                         newtoa.error = numpy.hypot(newtoa.error,
-                                                   self.cdict["EQUAD"])
-                        if self.cdict["INFO"]:
-                            newtoa.flags["info"] = self.cdict["INFO"]
-                        if self.cdict["JUMP"][0]:
-                            newtoa.flags["jump"] = self.cdict["JUMP"][1]
-                        if self.cdict["PHASE"] != 0:
-                            newtoa.flags["phase"] = self.cdict["PHASE"]
-                        if self.cdict["TIME"] != 0.0:
-                            newtoa.flags["time"] = self.cdict["TIME"]
-                        self.observatories.add(newtoa.obs)
-                        self.toas.append(newtoa)
-            if top:
-                # Clean up our temporaries used when reading TOAs
-                del self.cdict
+                                                   cdict["EQUAD"])
+                        if cdict["INFO"]:
+                            newtoa.flags["info"] = cdict["INFO"]
+                        if cdict["JUMP"][0]:
+                            newtoa.flags["jump"] = cdict["JUMP"][1]
+                        if cdict["PHASE"] != 0:
+                            newtoa.flags["phase"] = cdict["PHASE"]
+                        if cdict["TIME"] != 0.0:
+                            newtoa.flags["time"] = cdict["TIME"]
+                        observatories.add(newtoa.obs)
+                        toas.append(newtoa)
+    read_internal(filename, toas, commands, cdict, observatories)
+
+    return TOAs(filename=filename, toas=toas, commands=commands,
+                observatories=observatories)

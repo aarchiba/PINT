@@ -5,7 +5,7 @@ import astropy.units as u
 
 ls = u.def_unit('ls', const.c * 1.0 * u.s)
 
-ts = toa.TOAs("tests/testtimes.tim")
+ts = toa.read_toa_file("tests/testtimes.tim")
 # print ts.toas[0].mjd.lat, ts.toas[0].mjd.lon
 ts.apply_clock_corrections()
 ts.compute_posvels()
