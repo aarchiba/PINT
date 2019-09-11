@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import astropy.table
 import astropy.units as u
 import scipy.optimize as op
-import sys, os, copy, fftfit
+import sys, os, copy
 from astropy.coordinates import SkyCoord
 from astropy import log
 import argparse
@@ -103,13 +103,17 @@ def gaussian_profile(N, phase, fwhm):
               (mean, sigma))
         return np.zeros(N, 'd')
 def measure_phase(profile, template, rotate_prof=True):
+    """Find the phase shift to match profile to template
+
+    Call FFTFIT on the profile and template to determine the
+    following parameters: shift,eshift,snr,esnr,b,errb,ngood
+    (returned as a tuple).  These are defined as in Taylor's
+    talk at the Royal Society.
+
     """
-    measure_phase(profile, template):
-        Call FFTFIT on the profile and template to determine the
-            following parameters: shift,eshift,snr,esnr,b,errb,ngood
-            (returned as a tuple).  These are defined as in Taylor's
-            talk at the Royal Society.
-    """
+    # FIXME: only the best-fit shift is ever used
+    # This is easy to calculate without fftfit
+    import fftfit
     c,amp,pha = fftfit.cprof(template)
     pha1 = pha[0]
     if (rotate_prof):
@@ -118,8 +122,8 @@ def measure_phase(profile, template, rotate_prof=True):
     return shift,eshift,snr,esnr,b,errb,ngood
 
 def profile_likelihood(phs, *otherargs):
-    """
-    A single likelihood calc for matching phases to a template.
+    """A single likelihood calc for matching phases to a template.
+
     Likelihood is calculated as per eqn 2 in Pletsch & Clark 2015.
     """
     xvals, phases, template, weights = otherargs
@@ -138,13 +142,13 @@ def neg_prof_like(phs, *otherargs):
 
 def marginalize_over_phase(phases, template, weights=None, resolution=1.0/1024,
     minimize=True, fftfit=False, showplot=False, lophs=0.0, hiphs=1.0):
-    """
-    def marginalize_over_phase(phases, template, weights=None, resolution=1.0/1024,
-        minimize=True, fftfit=False, showplot=False, lophs=0.0, hiphs=1.0):
-            a pulse profile comprised of combined photon phases.  A maximum
-            likelood technique is used.  The shift and the max log likehood
-            are returned.  You probably want to use "minimize" rathre than
-            "fftfit" unless you are only sampling very close to your known min.
+    """Maybe marginalizes maybe minimizes?
+
+    a pulse profile comprised of combined photon phases.  A maximum
+    likelood technique is used.  The shift and the max log likehood
+    are returned.  You probably want to use "minimize" rather than
+    "fftfit" unless you are only sampling very close to your known min.
+
     """
     ltemp = len(template)
     xtemp = np.arange(ltemp) * 1.0/ltemp

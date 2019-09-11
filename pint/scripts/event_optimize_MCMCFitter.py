@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import astropy.table
 import astropy.units as u
 import scipy.optimize as op
-import sys, os, copy, fftfit
+import sys, os, copy
 from astropy.coordinates import SkyCoord
 from astropy import log
 import argparse
@@ -169,7 +169,7 @@ def main(argv=None):
     # *** This should be replaced/supplemented with a way to specify
     # more general priors on parameters that need certain bounds
     phs = 0.0 if args.phs is None else args.phs
-    
+
     sampler = EmceeSampler(nwalkers)
     ftr = MCMCFitterBinnedTemplate(ts, modelin, sampler, template=gtemplate, \
         weights=weights, phs=phs, phserr=args.phserr, minMJD=minMJD, maxMJD=maxMJD)
@@ -230,8 +230,8 @@ def main(argv=None):
         pos = [newfitvals + ftr.fiterrs*args.initerrfact*np.random.randn(ndim)
             for i in range(nwalkers)]
         pos[0] = ftr.fitvals
-    
-    ftr.fit_toas(maxiter=nsteps, pos=pos, 
+
+    ftr.fit_toas(maxiter=nsteps, pos=pos,
         priorerrfact=args.priorerrfact, errfact=args.initerrfact)
 
     def plot_chains(chain_dict, file=False):

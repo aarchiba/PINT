@@ -16,13 +16,13 @@ import matplotlib.pyplot as plt
 import astropy.table
 import astropy.units as u
 import scipy.optimize as op
-import sys, os, copy, fftfit
+import sys, os, copy
 from astropy.coordinates import SkyCoord
 from astropy import log
 import argparse
 
 #log.setLevel('DEBUG')
-log.setLevel('INFO')
+#log.setLevel('INFO')
 #np.seterr(all='raise')
 
 # initialization values
@@ -63,7 +63,7 @@ def get_toas(evtfile, flags, tcoords=None, minweight=0, minMJD=0, maxMJD=100000)
         ts.pickle()
     log.info("There are %d events we will use" % len(ts.table))
     return ts
-        
+
 
 def load_eventfiles(infile, tcoords=None, minweight=0, minMJD=0, maxMJD=100000):
     '''
@@ -71,7 +71,7 @@ def load_eventfiles(infile, tcoords=None, minweight=0, minMJD=0, maxMJD=100000):
     The format of each line of infile is:
     <eventfile> <log_likelihood function> <template> [flags]
     Allowed flags are:
-        -setweights - A multiplicative weight to apply to the 
+        -setweights - A multiplicative weight to apply to the
             probability function for this eventfile
         -usepickle - Load from a pickle file
         -weightcol - The weight column in the fits file
@@ -100,7 +100,7 @@ def load_eventfiles(infile, tcoords=None, minweight=0, minMJD=0, maxMJD=100000):
             else:
                 flags = {}
 
-            ts = get_toas(words[0], flags, tcoords=tcoords, minweight=minweight, 
+            ts = get_toas(words[0], flags, tcoords=tcoords, minweight=minweight,
                           minMJD=minMJD, maxMJD=maxMJD)
             eventinfo['toas'].append(ts)
             log.info('%s has %d events' % (words[0], len(ts.table)))
@@ -121,7 +121,7 @@ def load_eventfiles(infile, tcoords=None, minweight=0, minMJD=0, maxMJD=100000):
     return eventinfo
 
 def lnlikelihood_prob(ftr, theta, index):
-    phases = ftr.get_event_phases(index) 
+    phases = ftr.get_event_phases(index)
     phss = phases.astype(np.float64) + theta[-1]
     phss[phss < 0] += 1.0
     phss[phss >= 1] -= 1.0
@@ -133,7 +133,7 @@ def lnlikelihood_prob(ftr, theta, index):
         return np.log(ftr.weights[index]*probs + 1.0 - ftr.weights[index]).sum()
 
 def lnlikelihood_resid(ftr, theta, index):
-    return -resids(toas=ftr.toas_list[index], model=ftr.model).chi2.value 
+    return -resids(toas=ftr.toas_list[index], model=ftr.model).chi2.value
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="PINT tool for MCMC optimization of timing models using event data from multiple sources.")
@@ -204,7 +204,7 @@ def main(argv=None):
                                 minMJD=minMJD, maxMJD=maxMJD)
 
     nsets = len(eventinfo['toas'])
-    log.info('Total number of events:\t%d' % np.array([len(t.table) 
+    log.info('Total number of events:\t%d' % np.array([len(t.table)
         for t in eventinfo['toas']]).sum())
     log.info('Total number of datasets:\t%d' % nsets)
 
@@ -275,7 +275,7 @@ def main(argv=None):
             #Binned template
             gtemplate = read_gaussfitfile(tname, nbins)
             gtemplate /= gtemplate.mean()
-        
+
         gtemplates[i] = gtemplate
 
     # Set the priors on the parameters in the model, before
@@ -286,7 +286,7 @@ def main(argv=None):
     # *** This should be replaced/supplemented with a way to specify
     # more general priors on parameters that need certain bounds
     phs = 0.0 if args.phs is None else args.phs
-    
+
     sampler = EmceeSampler(nwalkers)
     ftr = CompositeMCMCFitter(eventinfo['toas'], modelin, sampler, lnlike_funcs,
                               templates=gtemplates, weights=wlist,
