@@ -121,6 +121,18 @@ def test_shift_invertible(s, template):
     assert_allclose(template, fftfit.shift(fftfit.shift(template, s), -s), atol=1e-14)
 
 
+@given(integers(0, 2 ** 20), floats(1, 1000), integers(5, 16), floats(0, 1))
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_integer_vonmises(fftfit_basic, i, kappa, profile_length, phase):
+    template = fftfit.vonmises_profile(kappa, 2 ** profile_length, phase)
+    assume(sum(template > 0.5 * template.max()) > 1)
+    s = i / len(template)
+    rs = fftfit_basic(template, fftfit.shift(template, s))
+    assert_allclose_phase(i / len(template), rs)
+
+
 @given(integers(0, 2 ** 20), vonmises_templates())
 @pytest.mark.parametrize(
     "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
