@@ -145,23 +145,35 @@ def test_fftfit_basic_integer(fftfit_basic, i, template):
 
 
 @given(integers(0, 2 ** 5), vonmises_templates())
-def test_fftfit_basic_integer_fraction(i, template):
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_integer_fraction(fftfit_basic, i, template):
     s = i / len(template) / 2 ** 5
-    rs = fftfit.fftfit_basic(template, fftfit.shift(template, s))
+    rs = fftfit_basic(template, fftfit.shift(template, s))
+    assert_allclose_phase(rs, s, atol=1e-4 / len(template))
 
 
 @given(floats(0, 1), floats(1, 1000), powers_of_two())
-def test_fftfit_basic_subbin(s, kappa, n):
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
+    assume(n >= 32)
     template = fftfit.vonmises_profile(kappa, n)
-    rs = fftfit.fftfit_basic(template, fftfit.shift(template, s / n))
+    rs = fftfit_basic(template, fftfit.shift(template, s / n))
     assert_allclose_phase(rs, s / n, atol=1e-4 / len(template))
 
 
 @given(
     floats(0, 1), one_of(vonmises_templates(), random_templates(), boxcar_templates())
 )
-def test_fftfit_basic_template(s, template):
-    rs = fftfit.fftfit_basic(template, fftfit.shift(template, s))
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_template(fftfit_basic, s, template):
+    assume(len(template) >= 32)
+    rs = fftfit_basic(template, fftfit.shift(template, s))
     assert_allclose_phase(rs, s, atol=1e-3 / len(template))
 
 
@@ -169,15 +181,23 @@ def test_fftfit_basic_template(s, template):
     one_of(vonmises_templates(), random_templates(), boxcar_templates()),
     one_of(vonmises_templates(), random_templates(), boxcar_templates()),
 )
-def test_fftfit_basic_different_profiles(profile1, profile2):
-    fftfit.fftfit_basic(profile1, profile2)
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_different_profiles(fftfit_basic, profile1, profile2):
+    assume(len(profile1) >= 32)
+    fftfit_basic(profile1, profile2)
 
 
 @given(
     one_of(vonmises_templates(), random_templates()),
     one_of(vonmises_templates(), random_templates()),
 )
-def test_fftfit_basic_shift(profile1, profile2):
+@pytest.mark.parametrize(
+    "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+)
+def test_fftfit_basic_shift(fftfit_basic, profile1, profile2):
+    assume(len(profile1) >= 32)
     s = fftfit.fftfit_basic(profile1, profile2)
     assert_allclose_phase(
         fftfit.fftfit_basic(fftfit.shift(profile1, s), profile2),
