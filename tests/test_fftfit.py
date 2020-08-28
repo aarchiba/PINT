@@ -40,6 +40,14 @@ def vonmises_templates(draw, ns=powers_of_two(), phase=floats(0, 1)):
 
 
 @composite
+def vonmises_templates_noisy(draw, ns=powers_of_two(), phase=floats(0, 1)):
+    n = draw(ns)
+    return fftfit.vonmises_profile(draw(floats(1, 1000)), n, draw(phase)) + (
+        1e-3 / n
+    ) * np.random.default_rng(0).standard_normal(n)
+
+
+@composite
 def random_templates(draw, ns=powers_of_two()):
     return np.random.randn(draw(ns))
 
@@ -116,7 +124,7 @@ def test_irfft_value_one(c, n, x):
     fftfit.irfft_value(c, x, n)
 
 
-@given(floats(0, 1), one_of(vonmises_templates(), random_templates()))
+@given(floats(0, 1), one_of(vonmises_templates_noisy(), random_templates()))
 def test_shift_invertible(s, template):
     assert_allclose(template, fftfit.shift(fftfit.shift(template, s), -s), atol=1e-14)
 
@@ -126,14 +134,17 @@ def test_shift_invertible(s, template):
     "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
 )
 def test_fftfit_basic_integer_vonmises(fftfit_basic, i, kappa, profile_length, phase):
-    template = fftfit.vonmises_profile(kappa, 2 ** profile_length, phase)
+    n = 2 ** profile_length
+    template = fftfit.vonmises_profile(kappa, n, phase) + (
+        1e-3 / n
+    ) * np.random.default_rng(0).standard_normal(n)
     assume(sum(template > 0.5 * template.max()) > 1)
     s = i / len(template)
     rs = fftfit_basic(template, fftfit.shift(template, s))
     assert_allclose_phase(i / len(template), rs)
 
 
-@given(integers(0, 2 ** 20), vonmises_templates())
+@given(integers(0, 2 ** 20), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
 )
@@ -144,7 +155,7 @@ def test_fftfit_basic_integer(fftfit_basic, i, template):
     assert_allclose_phase(i / len(template), rs)
 
 
-@given(integers(0, 2 ** 5), vonmises_templates())
+@given(integers(0, 2 ** 5), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
 )
@@ -160,13 +171,16 @@ def test_fftfit_basic_integer_fraction(fftfit_basic, i, template):
 )
 def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
     assume(n >= 32)
-    template = fftfit.vonmises_profile(kappa, n)
+    template = fftfit.vonmises_profile(kappa, n) + (1e-3 / n) * np.random.default_rng(
+        0
+    ).standard_normal(n)
     rs = fftfit_basic(template, fftfit.shift(template, s / n))
     assert_allclose_phase(rs, s / n, atol=1e-4 / len(template))
 
 
 @given(
-    floats(0, 1), one_of(vonmises_templates(), random_templates(), boxcar_templates())
+    floats(0, 1),
+    one_of(vonmises_templates_noisy(), random_templates(), boxcar_templates()),
 )
 @pytest.mark.parametrize(
     "fftfit_basic", [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
@@ -270,7 +284,7 @@ def test_fftfit_uncertainty_estimate_std(kappa, n, std, shift, scale, offset, st
     c = np.sum(np.abs(fftfit.wrap(values - shift)) < r.uncertainty)
     # breakpoint()
     p = 1 - 2 * scipy.stats.norm().sf(1)
-    assert True or (
+    assert (
         scipy.stats.binom.isf(0.01, len(values), p)
         <= c
         <= scipy.stats.binom.isf(0.99, len(values), p)
