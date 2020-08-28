@@ -182,3 +182,8 @@ def normalize_phase_0d5(phase):
     while phase <= -0.5:
         phase += 1
     return phase
+
+
+def fftfit_basic(template, profile):
+    n, seb, shift, eshift = fftfit(profile, template)
+    return shift
