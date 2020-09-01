@@ -243,7 +243,7 @@ def test_fftfit_basic_different_profiles(fftfit_basic, profile1, profile2):
     "fftfit_basic",
     [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic],
 )
-def test_fftfit_basic_shift(fftfit_basic, profile1, profile2):
+def test_fftfit_shift_equivalence(fftfit_basic, profile1, profile2):
     assume(len(profile1) >= 32)
     s = fftfit.fftfit_basic(profile1, profile2)
     assert_allclose_phase(
@@ -331,7 +331,7 @@ def test_fftfit_uncertainty_scaling_invariance(kappa, n, std, shift, scale, offs
     ],
 )
 @randomized_test(tries=8)
-def test_fftfit_uncertainty_estimate_std(
+def test_fftfit_uncertainty_estimate(
     kappa, n, std, shift, scale, offset, estimate, state
 ):
     template = fftfit.vonmises_profile(kappa, n)
@@ -353,6 +353,55 @@ def test_fftfit_uncertainty_estimate_std(
             + std * state.standard_normal(len(template))
         )
         return fftfit.wrap(fftfit.fftfit_basic(template, scale * profile) - shift)
+
+    values = np.array([gen_shift() for i in range(100)])
+    # Check that the fraction of values within one sigma is reasonable
+    c = np.sum(np.abs(values) < r.uncertainty)
+    # If everything works this should fail one time in twenty; we repeat the test on failure.
+    p = 1 - 2 * scipy.stats.norm().sf(1)
+    assert (
+        scipy.stats.binom(len(values), p).ppf(0.05)
+        <= c
+        <= scipy.stats.binom(len(values), p).ppf(0.95)
+    )
+
+
+@pytest.mark.parametrize(
+    "kappa,n,std,shift,scale,offset,fftfit_full",
+    [
+        a + (b,)
+        for a, b in product(
+            [
+                (1, 256, 0.01, 0, 1, 0),
+                (10, 64, 0.01, 1 / 3, 1e-6, 0),
+                (100, 1024, 0.002, 0.2, 1e4, 0),
+                (100, 1024, 0.02, 0.2, 1e4, 0),
+                (1000, 4096, 0.01, 0.7, 1e4, 0),
+            ],
+            [fftfit_aarchiba.fftfit_full, fftfit_nustar.fftfit_full],
+        )
+    ],
+)
+@randomized_test(tries=8)
+def test_fftfit_uncertainty_estimate_comparison(
+    kappa, n, std, shift, scale, offset, fftfit_full, state
+):
+    template = fftfit.vonmises_profile(kappa, n)
+    profile = (
+        fftfit.shift(template, shift)
+        + offset
+        + std * state.standard_normal(len(template))
+    )
+    r = fftfit.fftfit_full(template, scale * profile)
+    assert r.uncertainty < 0.1, "This uncertainty is too big for accuracy"
+
+    def gen_shift():
+        profile = (
+            fftfit.shift(template, shift)
+            + offset
+            + std * state.standard_normal(len(template))
+        )
+        return fftfit.wrap(fftfit.fftfit_full(template, scale * profile).shift - shift)
 
     values = np.array([gen_shift() for i in range(100)])
     # Check that the fraction of values within one sigma is reasonable
