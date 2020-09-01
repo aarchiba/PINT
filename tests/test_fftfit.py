@@ -1,4 +1,5 @@
 from functools import wraps
+from itertools import product
 
 import numpy as np
 import pytest
@@ -21,16 +22,18 @@ from pint.profile import fftfit_aarchiba
 from pint.profile import fftfit_nustar
 
 
-def assert_rms_close(a, b, rtol=1e-8, atol=1e-8):
+def assert_rms_close(a, b, rtol=1e-8, atol=1e-8, name=None):
     target(np.mean((a - b) ** 2), label="mean")
-    target((a - b).max(), label="max")
-    target(-(a - b).min(), label="min")
+    if name is not None:
+        target((a - b).max(), label="{} max".format(name))
+        target(-(a - b).min(), label="{} min".format(name))
     assert np.mean((a - b) ** 2) < rtol * (np.mean(a ** 2) + np.mean(b ** 2)) + atol
 
 
-def assert_allclose_phase(a, b, atol=1e-8):
-    target(np.abs(fftfit.wrap(a - b)).max(), label="max phase")
-    target(np.abs(fftfit.wrap(a - b)).mean(), label="mean phase")
+def assert_allclose_phase(a, b, atol=1e-8, name=None):
+    if name is not None:
+        target(np.abs(fftfit.wrap(a - b)).max(), label="{} max".format(name))
+        target(np.abs(fftfit.wrap(a - b)).mean(), label="{} mean".format(name))
     assert np.all(np.abs(fftfit.wrap(a - b)) <= atol)
 
 
@@ -73,7 +76,7 @@ def state():
     return np.random.default_rng(0)
 
 
-def randomized_test(tries=3, seed=0):
+def randomized_test(tries=5, seed=0):
     if tries < 1:
         raise ValueError("Must carry out at least one try")
 
@@ -146,7 +149,7 @@ def test_fftfit_basic_integer_vonmises(fftfit_basic, i, kappa, profile_length, p
     assume(sum(template > 0.5 * template.max()) > 1)
     s = i / len(template)
     rs = fftfit_basic(template, fftfit.shift(template, s))
-    assert_allclose_phase(i / len(template), rs)
+    assert_allclose_phase(i / len(template), rs, name="shift")
 
 
 @given(integers(0, 2 ** 20), vonmises_templates_noisy())
@@ -157,7 +160,7 @@ def test_fftfit_basic_integer(fftfit_basic, i, template):
     assume(len(template) >= 32)
     s = i / len(template)
     rs = fftfit_basic(template, fftfit.shift(template, s))
-    assert_allclose_phase(i / len(template), rs)
+    assert_allclose_phase(i / len(template), rs, name="shift")
 
 
 @given(integers(0, 2 ** 5), vonmises_templates_noisy())
@@ -167,7 +170,7 @@ def test_fftfit_basic_integer(fftfit_basic, i, template):
 def test_fftfit_basic_integer_fraction(fftfit_basic, i, template):
     s = i / len(template) / 2 ** 5
     rs = fftfit_basic(template, fftfit.shift(template, s))
-    assert_allclose_phase(rs, s, atol=1e-4 / len(template))
+    assert_allclose_phase(rs, s, atol=1e-4 / len(template), name="shift")
 
 
 @given(floats(0, 1), floats(1, 1000), powers_of_two())
@@ -180,7 +183,7 @@ def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
         0
     ).standard_normal(n)
     rs = fftfit_basic(template, fftfit.shift(template, s / n))
-    assert_allclose_phase(rs, s / n, atol=1e-4 / len(template))
+    assert_allclose_phase(rs, s / n, atol=1e-4 / len(template), name="shift")
 
 
 @given(
@@ -193,7 +196,7 @@ def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
 def test_fftfit_basic_template(fftfit_basic, s, template):
     assume(len(template) >= 32)
     rs = fftfit_basic(template, fftfit.shift(template, s))
-    assert_allclose_phase(rs, s, atol=1e-3 / len(template))
+    assert_allclose_phase(rs, s, atol=1e-3 / len(template), name="shift")
 
 
 @given(
@@ -222,6 +225,7 @@ def test_fftfit_basic_shift(fftfit_basic, profile1, profile2):
         fftfit.fftfit_basic(fftfit.shift(profile1, s), profile2),
         0,
         atol=1e-3 / min(len(profile1), len(profile2)),
+        name="shift",
     )
 
 
@@ -234,11 +238,14 @@ def test_fftfit_basic_shift(fftfit_basic, profile1, profile2):
 def test_fftfit_compute_scale(template, s, a, b):
     profile = a * fftfit.shift(template, s) + b
     r = fftfit.fftfit_full(template, profile)
-    assert_allclose_phase(s, r.shift, atol=1e-3 / len(template))
+    assert_allclose_phase(s, r.shift, atol=1e-3 / len(template), name="shift")
     assert_allclose(b, r.offset, atol=a * 1e-8)
     assert_allclose(a, r.scale, atol=(1 + abs(b)) * 1e-8)
     assert_rms_close(
-        profile, r.scale * fftfit.shift(template, r.shift) + r.offset, atol=1e-7
+        profile,
+        r.scale * fftfit.shift(template, r.shift) + r.offset,
+        atol=1e-7,
+        name="profile",
     )
 
 
@@ -259,38 +266,76 @@ def test_fftfit_uncertainty_template(kappa, n, std, state):
     ks, fpp = scipy.stats.kstest(values, scipy.stats.norm(0, r.uncertainty).cdf)
 
 
+# could be hypothesized
 @pytest.mark.parametrize(
     "kappa,n,std,shift,scale,offset",
     [
         (1, 256, 0.01, 0, 1, 0),
-        # (10, 64, 0.01, 1 / 3, 2, 0),
-        # (100, 1024, 0.02, 0.2, 0.1, 100),
+        (10, 64, 0.01, 1 / 3, 2e-3, 0),
+        (100, 1024, 0.02, 0.2, 1e4, 0),
+        (100, 2048, 0.01, 0.2, 1e4, -100),
     ],
 )
-@randomized_test()
-def test_fftfit_uncertainty_estimate_std(kappa, n, std, shift, scale, offset, state):
+def test_fftfit_uncertainty_scaling_invariance(kappa, n, std, shift, scale, offset):
+    state = np.random.default_rng(0)
+    template = fftfit.vonmises_profile(kappa, n)
+    profile = fftfit.shift(template, shift) + std * state.standard_normal(len(template))
+
+    r_1 = fftfit.fftfit_full(template, profile)
+    r_2 = fftfit.fftfit_full(template, scale * profile + offset)
+
+    assert_allclose_phase(r_2.shift, r_1.shift, 1.0 / (32 * n))
+    assert_allclose(r_2.uncertainty, r_1.uncertainty, rtol=1e-3)
+    assert_allclose(r_2.scale, scale * r_1.scale, rtol=1e-3)
+    assert_allclose(r_2.offset, offset + scale * r_1.offset, rtol=1e-3, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "kappa,n,std,shift,scale,offset,estimate",
+    [
+        a + (b,)
+        for a, b in product(
+            [
+                (1, 256, 0.01, 0, 1, 0),
+                (10, 64, 0.01, 1 / 3, 1e-6, 0),
+                (100, 1024, 0.002, 0.2, 1e4, 0),
+                (100, 1024, 0.02, 0.2, 1e4, 0),
+            ],
+            [False, True],
+        )
+    ],
+)
+@randomized_test(tries=8)
+def test_fftfit_uncertainty_estimate_std(
+    kappa, n, std, shift, scale, offset, estimate, state
+):
     template = fftfit.vonmises_profile(kappa, n)
     profile = (
-        scale * fftfit.shift(template, shift)
+        fftfit.shift(template, shift)
         + offset
-        # + std * state.standard_normal((len(template),))
+        + std * state.standard_normal(len(template))
     )
-    r = fftfit.fftfit_full(template, profile, std=std)
+    if estimate:
+        r = fftfit.fftfit_full(template, scale * profile)
+    else:
+        r = fftfit.fftfit_full(template, scale * profile, std=scale * std)
+    assert r.uncertainty < 0.1, "This uncertainty is too big for accuracy"
 
     def gen_shift():
         profile = (
-            scale * fftfit.shift(template, shift)
+            fftfit.shift(template, shift)
             + offset
-            + std * state.standard_normal((len(template),))
+            + std * state.standard_normal(len(template))
         )
-        return fftfit.fftfit_basic(template, profile)
+        return fftfit.wrap(fftfit.fftfit_basic(template, scale * profile) - shift)
 
     values = np.array([gen_shift() for i in range(100)])
-    c = np.sum(np.abs(fftfit.wrap(values - shift)) < r.uncertainty)
-    # breakpoint()
+    # Check that the fraction of values within one sigma is reasonable
+    c = np.sum(np.abs(values) < r.uncertainty)
+    # If everything works this should fail one time in twenty; we repeat the test on failure.
     p = 1 - 2 * scipy.stats.norm().sf(1)
     assert (
-        scipy.stats.binom.isf(0.01, len(values), p)
+        scipy.stats.binom(len(values), p).ppf(0.05)
         <= c
-        <= scipy.stats.binom.isf(0.99, len(values), p)
+        <= scipy.stats.binom(len(values), p).ppf(0.95)
     )
