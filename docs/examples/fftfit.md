@@ -316,9 +316,52 @@ r.uncertainty/np.std(shifts)
 ```
 
 ```python
-scipy.stats.binom.isf(0.025, 100, 0.75), scipy.stats.binom.isf(0.975, 100, 0.75)
+snrs = {}
+
+template = fftfit.vonmises_profile(200, 1024, 1 / 3)
+plt.plot(np.linspace(0, 1, len(template), endpoint=False), template)
+
+def gen_prof(std):
+    shift = np.random.uniform(0,1)
+    shift_template = fftfit.shift(template, shift)
+    return shift_template + std*np.random.standard_normal(len(template))/np.sqrt(len(template))
+    
+plt.plot(np.linspace(0, 1, len(template), endpoint=False), gen_prof(0.01))
+plt.xlim(0, 1)
+        
+def gen_shift(std):
+    shift = np.random.uniform(0,1)
+    shift_template = fftfit.shift(template, shift)
+    profile = shift_template + std*np.random.standard_normal(len(template))/np.sqrt(len(template))
+    return fftfit.wrap(
+        fftfit.fftfit_basic(
+            template, profile
+        ) - shift
+    )
+
+gen_shift(0.01)
 ```
 
 ```python
-scipy.stats.binom?
+def gen_uncert(std):
+    return fftfit.fftfit_full(template, gen_prof(std), std=std).uncertainty
+```
+
+```python
+for s in np.geomspace(1,1e-4,9):
+    if s not in snrs:
+        snrs[s] = []
+    for i in range(1000):
+        snrs[s].append(gen_shift(s))
+```
+
+```python
+snr_list = sorted(snrs.keys())
+plt.loglog(snr_list, [np.std(snrs[s]) for s in snr_list], ".", label="measured std")
+plt.loglog(snr_list, [gen_uncert(s) for s in snr_list], ".", label="computed std")
+plt.legend()
+```
+
+```python
+
 ```
