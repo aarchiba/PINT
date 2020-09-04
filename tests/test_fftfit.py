@@ -20,7 +20,15 @@ from numpy.testing import assert_allclose, assert_array_almost_equal
 import pint.profile.fftfit_aarchiba as fftfit
 from pint.profile import fftfit_aarchiba
 from pint.profile import fftfit_nustar
+from pint.profile import fftfit_presto
 
+
+fftfit_basics = [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic]
+fftfit_fulls = [fftfit_aarchiba.fftfit_full, fftfit_nustar.fftfit_full]
+
+if fftfit_presto.presto is not None:
+    fftfit_basics.append(fftfit_presto.fftfit_basic)
+    fftfit_fulls.append(fftfit_presto.fftfit_full)
 
 def assert_rms_close(a, b, rtol=1e-8, atol=1e-8, name=None):
     target(np.mean((a - b) ** 2), label="mean")
@@ -140,10 +148,7 @@ def test_shift_invertible(s, template):
 @given(integers(0, 2 ** 20), floats(1, 1000), integers(5, 16), floats(0, 1))
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_integer_vonmises(fftfit_basic, i, kappa, profile_length, phase):
     n = 2 ** profile_length
@@ -159,10 +164,7 @@ def test_fftfit_basic_integer_vonmises(fftfit_basic, i, kappa, profile_length, p
 @given(integers(0, 2 ** 20), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_integer(fftfit_basic, i, template):
     assume(len(template) >= 32)
@@ -174,10 +176,7 @@ def test_fftfit_basic_integer(fftfit_basic, i, template):
 @given(integers(0, 2 ** 5), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_integer_fraction(fftfit_basic, i, template):
     s = i / len(template) / 2 ** 5
@@ -188,10 +187,7 @@ def test_fftfit_basic_integer_fraction(fftfit_basic, i, template):
 @given(floats(0, 1), floats(1, 1000), powers_of_two())
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
     assume(n >= 32)
@@ -208,10 +204,7 @@ def test_fftfit_basic_subbin(fftfit_basic, s, kappa, n):
 )
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_template(fftfit_basic, s, template):
     assume(len(template) >= 32)
@@ -225,10 +218,7 @@ def test_fftfit_basic_template(fftfit_basic, s, template):
 )
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [
-        fftfit_aarchiba.fftfit_basic,
-        pytest.param(fftfit_nustar.fftfit_basic, marks=pytest.mark.xfail),
-    ],
+    fftfit_basics,
 )
 def test_fftfit_basic_different_profiles(fftfit_basic, profile1, profile2):
     assume(len(profile1) >= 32)
@@ -241,7 +231,7 @@ def test_fftfit_basic_different_profiles(fftfit_basic, profile1, profile2):
 )
 @pytest.mark.parametrize(
     "fftfit_basic",
-    [fftfit_aarchiba.fftfit_basic, fftfit_nustar.fftfit_basic],
+    fftfit_basics,
 )
 def test_fftfit_shift_equivalence(fftfit_basic, profile1, profile2):
     assume(len(profile1) >= 32)
@@ -378,7 +368,7 @@ def test_fftfit_uncertainty_estimate(
                 (100, 1024, 0.02, 0.2, 1e4, 0),
                 (1000, 4096, 0.01, 0.7, 1e4, 0),
             ],
-            [fftfit_aarchiba.fftfit_full, fftfit_nustar.fftfit_full],
+            fftfit_fulls,
         )
     ],
 )
