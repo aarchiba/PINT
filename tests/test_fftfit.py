@@ -475,6 +475,7 @@ def test_fftfit_uncertainty_scaling_invariance(kappa, n, std, shift, scale, offs
 def test_fftfit_uncertainty_estimate(
     kappa, n, std, shift, scale, offset, estimate, state
 ):
+    """Check the noise level estimation works."""
     template = fftfit.vonmises_profile(kappa, n)
 
     def value_within_one_sigma():
@@ -488,6 +489,149 @@ def test_fftfit_uncertainty_estimate(
         else:
             r = fftfit.fftfit_full(template, scale * profile, std=scale * std)
         return np.abs(fftfit.wrap(r.shift - shift)) < r.uncertainty
+
+    assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA)
+
+
+@pytest.mark.parametrize(
+    "kappa,n,std,shift,scale,offset,code",
+    [
+        (1, 256, 0.01, 0, 1, 0, "aarchiba"),
+        (10, 64, 0.01, 1 / 3, 1e-6, 0, "aarchiba"),
+        (100, 1024, 0.002, 0.2, 1e4, 0, "aarchiba"),
+        (100, 1024, 0.02, 0.2, 1e4, 0, "aarchiba"),
+        (1000, 4096, 0.01, 0.7, 1e4, 0, "aarchiba"),
+        pytest.param(
+            1,
+            256,
+            0.01,
+            0,
+            1,
+            0,
+            "nustar",
+        ),
+        pytest.param(
+            10,
+            64,
+            0.01,
+            1 / 3,
+            1e-6,
+            0,
+            "nustar",
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.002,
+            0.2,
+            1e4,
+            0,
+            "nustar",
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.02,
+            0.2,
+            1e4,
+            0,
+            "nustar",
+        ),
+        pytest.param(
+            1000,
+            4096,
+            0.01,
+            0.7,
+            1e4,
+            0,
+            "nustar",
+        ),
+        pytest.param(
+            1,
+            256,
+            0.01,
+            0,
+            1,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            10,
+            64,
+            0.01,
+            1 / 3,
+            1e-6,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.002,
+            0.2,
+            1e4,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.02,
+            0.2,
+            1e4,
+            0,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available")],
+        ),
+        pytest.param(
+            1000,
+            4096,
+            0.01,
+            0.7,
+            1e4,
+            0,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available")],
+        ),
+    ],
+)
+@randomized_test(tries=8)
+def test_fftfit_value(kappa, n, std, shift, scale, offset, code, state):
+    """Check if the returned values are okay with a noisy profile.
+
+    Here we define "okay" as scattered about the right value and within
+    one sigma as defined by the uncertainty returned by the aarchiba version
+    of the code (this is presumably a trusted uncertainty).
+    """
+    template = fftfit.vonmises_profile(kappa, n)
+    profile = (
+        fftfit.shift(template, shift)
+        + offset
+        + std * state.standard_normal(len(template))
+    )
+    r_true = fftfit.fftfit_full(template, scale * profile, std=scale * std)
+    assert r_true.uncertainty < 0.1, "This uncertainty is too big for accuracy"
+
+    def value_within_one_sigma():
+        profile = (
+            fftfit.shift(template, shift)
+            + offset
+            + std * state.standard_normal(len(template))
+        )
+        r = fftfit_full(template, scale * profile, code=code)
+        return np.abs(fftfit.wrap(r.shift - shift)) < r_true.uncertainty
 
     assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA)
 
@@ -613,6 +757,7 @@ def test_fftfit_uncertainty_estimate(
 )
 @randomized_test(tries=8)
 def test_fftfit_value_vs_uncertainty(kappa, n, std, shift, scale, offset, code, state):
+    """Check if the scatter matches the claimed uncertainty."""
     template = fftfit.vonmises_profile(kappa, n)
 
     def value_within_one_sigma():
