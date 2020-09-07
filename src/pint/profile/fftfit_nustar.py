@@ -201,7 +201,7 @@ class FullResult:
 
 def fftfit_full(template, profile):
     r = fftfit(profile, template)
-    ro = FullResult(profile, template)
+    ro = FullResult()
     ro.shift = r.mean_phase
     ro.uncertainty = r.std_phase
     return ro
