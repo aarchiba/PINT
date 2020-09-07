@@ -33,6 +33,7 @@ if fftfit_presto.presto is not None:
 
 NO_PRESTO = fftfit_presto.presto is None
 
+
 def assert_rms_close(a, b, rtol=1e-8, atol=1e-8, name=None):
     __tracebackhide__ = True
     target(np.mean((a - b) ** 2), label="mean")
@@ -48,6 +49,39 @@ def assert_allclose_phase(a, b, atol=1e-8, name=None):
         target(np.abs(fftfit.wrap(a - b)).max(), label="{} max".format(name))
         target(np.abs(fftfit.wrap(a - b)).mean(), label="{} mean".format(name))
     assert np.all(np.abs(fftfit.wrap(a - b)) <= atol)
+
+
+ONE_SIGMA = 1 - 2 * scipy.stats.norm().sf(1)
+
+
+def assert_happens_with_probability(
+    func,
+    p=ONE_SIGMA,
+    n=100,
+    p_lower=None,
+    p_upper=None,
+    fpp=0.05,
+):
+    __tracebackhide__ = True
+    if p_lower is None:
+        p_lower = p
+    if p_upper is None:
+        p_upper = p
+    if p_lower > p_upper:
+        raise ValueError(
+            "Lower limit on probability {} is higher than upper limit {}".format(
+                p_lower, p_upper
+            )
+        )
+
+    k = 0
+    for i in range(n):
+        if func():
+            k += 1
+    low_k = scipy.stats.binom(n, p).ppf(fpp / 2)
+    high_k = scipy.stats.binom(n, p).isf(fpp / 2)
+    assert low_k <= k
+    assert k <= high_k
 
 
 @composite
@@ -153,15 +187,22 @@ def test_shift_invertible(s, template):
 @given(integers(0, 2 ** 20), floats(1, 1000), integers(5, 16), floats(0, 1))
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_integer_vonmises(code, i, kappa, profile_length, phase):
     if code == "presto":
@@ -173,24 +214,31 @@ def test_fftfit_basic_integer_vonmises(code, i, kappa, profile_length, phase):
     assume(sum(template > 0.5 * template.max()) > 1)
     s = i / len(template)
     rs = fftfit_basic(template, fftfit.shift(template, s), code=code)
-    assert_allclose_phase(s, rs, atol=1/(32*len(template)), name="shift")
+    assert_allclose_phase(s, rs, atol=1 / (32 * len(template)), name="shift")
 
 
 @given(integers(0, 2 ** 20), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_integer(code, i, template):
-    if code!="aarchiba":
+    if code != "aarchiba":
         assume(len(template) >= 32)
     s = i / len(template)
     rs = fftfit_basic(template, fftfit.shift(template, s), code=code)
@@ -200,15 +248,22 @@ def test_fftfit_basic_integer(code, i, template):
 @given(integers(0, 2 ** 5), vonmises_templates_noisy())
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_integer_fraction(code, i, template):
     s = i / len(template) / 2 ** 5
@@ -219,18 +274,25 @@ def test_fftfit_basic_integer_fraction(code, i, template):
 @given(floats(0, 1), floats(1, 1000), powers_of_two())
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_subbin(code, s, kappa, n):
-    if code!="aarchiba":
+    if code != "aarchiba":
         assume(n >= 32)
     template = fftfit.vonmises_profile(kappa, n) + (1e-3 / n) * np.random.default_rng(
         0
@@ -245,18 +307,25 @@ def test_fftfit_basic_subbin(code, s, kappa, n):
 )
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profile too symmetric"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profile too symmetric"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_template(code, s, template):
-    if code!="aarchiba":
+    if code != "aarchiba":
         assume(len(template) >= 32)
     rs = fftfit_basic(template, fftfit.shift(template, s), code=code)
     assert_allclose_phase(rs, s, atol=1e-3 / len(template), name="shift")
@@ -268,20 +337,27 @@ def test_fftfit_basic_template(code, s, template):
 )
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profiles different lengths"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profiles different lengths"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profiles different lengths"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profiles different lengths"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_basic_different_profiles(code, profile1, profile2):
-    if code!="aarchiba":
+    if code != "aarchiba":
         assume(len(profile1) >= 32)
-    fftfit_basic(profile1, profile2,code=code)
+    fftfit_basic(profile1, profile2, code=code)
 
 
 @given(
@@ -290,22 +366,29 @@ def test_fftfit_basic_different_profiles(code, profile1, profile2):
 )
 @pytest.mark.parametrize(
     "code",
-    ["aarchiba", 
-        pytest.param("nustar", marks=[
-            pytest.mark.xfail(reason="profiles different lengths"),
-            ]), 
-        pytest.param("presto", marks=[
-            pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
-            pytest.mark.xfail(reason="profiles different lengths"),
-            ]), 
-        ],
+    [
+        "aarchiba",
+        pytest.param(
+            "nustar",
+            marks=[
+                pytest.mark.xfail(reason="profiles different lengths"),
+            ],
+        ),
+        pytest.param(
+            "presto",
+            marks=[
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+                pytest.mark.xfail(reason="profiles different lengths"),
+            ],
+        ),
+    ],
 )
 def test_fftfit_shift_equivalence(code, profile1, profile2):
-    if code!="aarchiba":
+    if code != "aarchiba":
         assume(len(profile1) >= 32)
-    s = fftfit_basic(profile1, profile2,code=code)
+    s = fftfit_basic(profile1, profile2, code=code)
     assert_allclose_phase(
-        fftfit_basic(fftfit.shift(profile1, s), profile2,code=code),
+        fftfit_basic(fftfit.shift(profile1, s), profile2, code=code),
         0,
         atol=1e-3 / min(len(profile1), len(profile2)),
         name="shift",
@@ -393,35 +476,20 @@ def test_fftfit_uncertainty_estimate(
     kappa, n, std, shift, scale, offset, estimate, state
 ):
     template = fftfit.vonmises_profile(kappa, n)
-    profile = (
-        fftfit.shift(template, shift)
-        + offset
-        + std * state.standard_normal(len(template))
-    )
-    if estimate:
-        r = fftfit.fftfit_full(template, scale * profile)
-    else:
-        r = fftfit.fftfit_full(template, scale * profile, std=scale * std)
-    assert r.uncertainty < 0.1, "This uncertainty is too big for accuracy"
 
-    def gen_shift():
+    def value_within_one_sigma():
         profile = (
             fftfit.shift(template, shift)
             + offset
             + std * state.standard_normal(len(template))
         )
-        return fftfit.wrap(fftfit.fftfit_basic(template, scale * profile) - shift)
+        if estimate:
+            r = fftfit.fftfit_full(template, scale * profile)
+        else:
+            r = fftfit.fftfit_full(template, scale * profile, std=scale * std)
+        return np.abs(fftfit.wrap(r.shift - shift)) < r.uncertainty
 
-    values = np.array([gen_shift() for i in range(100)])
-    # Check that the fraction of values within one sigma is reasonable
-    c = np.sum(np.abs(values) < r.uncertainty)
-    # If everything works this should fail one time in twenty; we repeat the test on failure.
-    p = 1 - 2 * scipy.stats.norm().sf(1)
-    assert (
-        scipy.stats.binom(len(values), p).ppf(0.05)
-        <= c
-        <= scipy.stats.binom(len(values), p).ppf(0.95)
-    )
+    assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA)
 
 
 @pytest.mark.parametrize(
@@ -432,70 +500,122 @@ def test_fftfit_uncertainty_estimate(
         (100, 1024, 0.002, 0.2, 1e4, 0, "aarchiba"),
         (100, 1024, 0.02, 0.2, 1e4, 0, "aarchiba"),
         (1000, 4096, 0.01, 0.7, 1e4, 0, "aarchiba"),
-        pytest.param(100, 1024, 0.02, 0.2, 1e4, 0, "nustar", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(100, 1024, 0.02, 0.2, 1e4, 0, "presto", marks=pytest.mark.xfail(reason="bug?")),
+        pytest.param(
+            1,
+            256,
+            0.01,
+            0,
+            1,
+            0,
+            "nustar",
+            marks=pytest.mark.xfail(reason="claimed uncertainty too big"),
+        ),
+        pytest.param(
+            10,
+            64,
+            0.01,
+            1 / 3,
+            1e-6,
+            0,
+            "nustar",
+            marks=pytest.mark.xfail(reason="bug?"),
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.002,
+            0.2,
+            1e4,
+            0,
+            "nustar",
+            marks=pytest.mark.xfail(reason="bug?"),
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.02,
+            0.2,
+            1e4,
+            0,
+            "nustar",
+            marks=pytest.mark.xfail(reason="bug?"),
+        ),
+        pytest.param(
+            1000,
+            4096,
+            0.01,
+            0.7,
+            1e4,
+            0,
+            "nustar",
+            marks=pytest.mark.xfail(reason="bug?"),
+        ),
+        pytest.param(
+            1,
+            256,
+            0.01,
+            0,
+            1,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            10,
+            64,
+            0.01,
+            1 / 3,
+            1e-6,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.002,
+            0.2,
+            1e4,
+            0,
+            "presto",
+            marks=[
+                pytest.mark.xfail(reason="bug?"),
+                pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
+            ],
+        ),
+        pytest.param(
+            100,
+            1024,
+            0.02,
+            0.2,
+            1e4,
+            0,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available")],
+        ),
+        pytest.param(
+            1000,
+            4096,
+            0.01,
+            0.7,
+            1e4,
+            0,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available")],
+        ),
     ],
 )
 @randomized_test(tries=8)
-def test_fftfit_uncertainty_estimate_comparison(
-    kappa, n, std, shift, scale, offset, code, state
-):
+def test_fftfit_value_vs_uncertainty(kappa, n, std, shift, scale, offset, code, state):
     template = fftfit.vonmises_profile(kappa, n)
-    profile = (
-        fftfit.shift(template, shift)
-        + offset
-        + std * state.standard_normal(len(template))
-    )
-    r = fftfit_full(template, scale * profile, code=code)
-    assert r.uncertainty < 0.1, "This uncertainty is too big for accuracy"
 
-    def gen_shift():
-        profile = (
-            fftfit.shift(template, shift)
-            + offset
-            + std * state.standard_normal(len(template))
-        )
-        return fftfit.wrap(fftfit_full(template, scale * profile, code=code).shift - shift)
-
-    values = np.array([gen_shift() for i in range(100)])
-    # Check that the fraction of values within one sigma is reasonable
-    c = np.sum(np.abs(values) < r.uncertainty)
-    # If everything works this should fail one time in twenty; we repeat the test on failure.
-    p = 1 - 2 * scipy.stats.norm().sf(1)
-    assert (
-        scipy.stats.binom(len(values), p).ppf(0.05)
-        <= c
-        <= scipy.stats.binom(len(values), p).ppf(0.95)
-    )
-
-@pytest.mark.parametrize(
-    "kappa,n,std,shift,scale,offset,code",
-    [
-        (1, 256, 0.01, 0, 1, 0, "aarchiba"),
-        (10, 64, 0.01, 1 / 3, 1e-6, 0, "aarchiba"),
-        (100, 1024, 0.002, 0.2, 1e4, 0, "aarchiba"),
-        (100, 1024, 0.02, 0.2, 1e4, 0, "aarchiba"),
-        pytest.param(1000, 4096, 0.01, 0.7, 1e4, 0, "aarchiba",marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(1, 256, 0.01, 0, 1, 0, "nustar",marks=pytest.mark.xfail(reason="claimed uncertainty too big")),
-        pytest.param(10, 64, 0.01, 1 / 3, 1e-6, 0, "nustar", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(100, 1024, 0.002, 0.2, 1e4, 0, "nustar", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(100, 1024, 0.02, 0.2, 1e4, 0, "nustar", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(1000, 4096, 0.01, 0.7, 1e4, 0, "nustar", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(1, 256, 0.01, 0, 1, 0, "presto", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(10, 64, 0.01, 1/3, 1e-6, 0, "presto", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(100, 1024, 0.002, 0.2, 1e4, 0, "presto", marks=pytest.mark.xfail(reason="bug?")),
-        pytest.param(100, 1024, 0.02, 0.2, 1e4, 0, "presto"),
-        pytest.param(1000, 4096, 0.01, 0.7, 1e4, 0, "presto"),
-    ],
-)
-@randomized_test(tries=8)
-def test_fftfit_value_vs_uncertainty(
-    kappa, n, std, shift, scale, offset, code, state
-        ):
-    template = fftfit.vonmises_profile(kappa, n)
-    n = 100
-    k = 0
-    for i in range(n):
+    def value_within_one_sigma():
         profile = (
             fftfit.shift(template, shift)
             + offset
@@ -503,12 +623,6 @@ def test_fftfit_value_vs_uncertainty(
         )
         r = fftfit_full(template, scale * profile, code=code)
         assert r.uncertainty < 0.1, "This uncertainty is too big for accuracy"
-        if np.abs(fftfit.wrap(r.shift-shift)) < r.uncertainty:
-            k += 1
-    # If everything works this should fail one time in twenty; we repeat the test on failure.
-    p = 1 - 2 * scipy.stats.norm().sf(1)
-    assert (
-        scipy.stats.binom(n, p).ppf(0.05)
-        <= k
-        <= scipy.stats.binom(n, p).ppf(0.95)
-    )
+        return np.abs(fftfit.wrap(r.shift - shift)) < r.uncertainty
+
+    assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA)
