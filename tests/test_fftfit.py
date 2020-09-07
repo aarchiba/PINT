@@ -78,8 +78,8 @@ def assert_happens_with_probability(
     for i in range(n):
         if func():
             k += 1
-    low_k = scipy.stats.binom(n, p).ppf(fpp / 2)
-    high_k = scipy.stats.binom(n, p).isf(fpp / 2)
+    low_k = scipy.stats.binom(n, p_lower).ppf(fpp / 2)
+    high_k = scipy.stats.binom(n, p_upper).isf(fpp / 2)
     assert low_k <= k
     assert k <= high_k
 
@@ -770,3 +770,86 @@ def test_fftfit_value_vs_uncertainty(kappa, n, std, shift, scale, offset, code, 
         return np.abs(fftfit.wrap(r.shift - shift)) < r.uncertainty
 
     assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA)
+
+
+@pytest.mark.parametrize(
+    "kappa1,kappa2,n,std,code",
+    [
+        (1, 1.1, 256, 0.01, "aarchiba"),
+        (10, 11, 2048, 0.01, "aarchiba"),
+        (100, 110, 2048, 0.01, "aarchiba"),
+        (1.1, 1, 256, 0.01, "aarchiba"),
+        (11, 10, 2048, 0.01, "aarchiba"),
+        (110, 100, 2048, 0.01, "aarchiba"),
+        (1, 1.1, 256, 0.01, "nustar"),
+        (10, 11, 2048, 0.01, "nustar"),
+        (100, 110, 2048, 0.01, "nustar"),
+        (1.1, 1, 256, 0.01, "nustar"),
+        (11, 10, 2048, 0.01, "nustar"),
+        (110, 100, 2048, 0.01, "nustar"),
+        pytest.param(
+            1,
+            1.1,
+            256,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+        pytest.param(
+            10,
+            11,
+            2048,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+        pytest.param(
+            100,
+            110,
+            2048,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+        pytest.param(
+            1.1,
+            1,
+            256,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+        pytest.param(
+            11,
+            10,
+            2048,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+        pytest.param(
+            110,
+            100,
+            2048,
+            0.01,
+            "presto",
+            marks=[pytest.mark.skipif(NO_PRESTO, reason="PRESTO not available")],
+        ),
+    ],
+)
+@randomized_test(tries=8)
+def test_fftfit_wrong_profile(kappa1, kappa2, n, std, code, state):
+    """Check that the uncertainty is okay or pessimistic if the template is wrong."""
+    template = fftfit.vonmises_profile(kappa1, n)
+    wrong_template = fftfit.vonmises_profile(kappa2, n)
+
+    def value_within_one_sigma():
+        shift = state.uniform(0, 1)
+        profile = fftfit.shift(template, shift) + std * state.standard_normal(
+            len(template)
+        )
+        r = fftfit_full(wrong_template, profile, code=code)
+        return np.abs(fftfit.wrap(r.shift - shift)) < r.uncertainty
+
+    # Must be pessimistic
+    assert_happens_with_probability(value_within_one_sigma, ONE_SIGMA, p_upper=1)
