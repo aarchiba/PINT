@@ -555,7 +555,6 @@ def test_fftfit_uncertainty_estimate(
             0,
             "presto",
             marks=[
-                pytest.mark.xfail(reason="bug?"),
                 pytest.mark.skipif(NO_PRESTO, reason="PRESTO is not available"),
             ],
         ),
