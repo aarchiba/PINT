@@ -35,12 +35,34 @@ def test_dmx_no_toas():
         )
     )
     toas = make_fake_toas(57000, 57900, 10, model)
+    model.free_params = ["DMX_0001"]
     with pytest.raises(MissingTOAs) as e:
         model.validate_toas(toas)
     assert e.value.parameter_names == ["DMX_0001"]
     fitter = pint.fitter.WLSFitter(toas, model)
     with pytest.raises(MissingTOAs):
         fitter.fit_toas()
+
+
+def test_dmx_no_toas_frozen():
+    model = get_model(
+        io.StringIO(
+            "\n".join(
+                [
+                    par_base,
+                    "DMX 15",
+                    "DMX_0001 16",
+                    "DMXR1_0001 58000",
+                    "DMXR2_0001 59000",
+                ]
+            )
+        )
+    )
+    toas = make_fake_toas(57000, 57900, 10, model)
+    model.free_params = ["F0"]
+    model.validate_toas(toas)
+    fitter = pint.fitter.WLSFitter(toas, model)
+    fitter.fit_toas()
 
 
 def test_jump_no_toas():
